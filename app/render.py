@@ -11,8 +11,6 @@ from .overlay import build_overlay
 def build_filter(focus: float, clip_sec: float, has_vignette: bool = True) -> str:
     """[0:v]=원본, [1:v]=텍스트 오버레이 PNG. drawtext 없이 overlay 필터만 사용."""
     focus = min(1.0, max(0.0, focus))
-    fade = C.FADE_SECONDS
-    fade_out_start = max(0.0, clip_sec - fade)
     crop = (
         f"crop=w='min(iw,ih*9/16)':h='min(ih,iw*16/9)'"
         f":x='(iw-ow)*{focus}':y='(ih-oh)/2'"
@@ -26,10 +24,9 @@ def build_filter(focus: float, clip_sec: float, has_vignette: bool = True) -> st
     ]
     if has_vignette:
         base.append("vignette=angle=PI/5:mode=forward")   # 상단 텍스트 가독성을 위한 옅은 비네트
-    base.append(f"fade=t=in:st=0:d={fade},fade=t=out:st={fade_out_start}:d={fade}")
     return (
         f"[0:v]{','.join(base)}[base];"
-        f"[1:v]format=rgba,fade=t=in:st=0:d=1.4:alpha=1[txt];"
+        f"[1:v]format=rgba[txt];"
         f"[base][txt]overlay=0:0:format=auto:shortest=1,format=yuv420p[v]"
     )
 
@@ -54,11 +51,7 @@ def render_clip(src: str, start: float, end: float, out: Path, focus: float = 0.
     if not overlay_png.exists():
         build_overlay(overlay_png)
 
-    fade = C.FADE_SECONDS
-    af = (
-        f"afade=t=in:st=0:d={fade},afade=t=out:st={max(0, clip_sec - fade)}:d={fade},"
-        "loudnorm=I=-14:TP=-1.5:LRA=11"
-    )
+    af = "loudnorm=I=-14:TP=-1.5:LRA=11"
     cmd = [
         "ffmpeg", "-y", "-v", "error",
         "-ss", f"{start:.3f}", "-t", f"{clip_sec:.3f}", "-i", src,

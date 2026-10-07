@@ -38,8 +38,8 @@ python -m app.cli 공연영상.mp4 --artist 허지수 --handle j12xu \
    30초 창을 1초씩 밀며 점수화합니다. 무음이 많은 창은 감점, 영상 맨 앞뒤는 소폭 감점.
    서로 겹치지 않는 상위 3개를 고른 뒤, 시작점을 근처의 프레이즈 경계(음량이 잠깐 꺼지는 지점)로 스냅합니다.
 2. **렌더링** (`app/render.py`) — ffmpeg 한 번의 패스로
-   9:16 크롭(중심 위치 조절 가능) → 1080×1920 → 페이드 인/아웃 → 옅은 비네트 →
-   Great Vibes 필기체 타이틀 + Noto Sans KR 자간 넓힌 서브타이틀(천천히 페이드 인) →
+   9:16 크롭(중심 위치 조절 가능) → 1080×1920 → 옅은 비네트 →
+   Mrs Saint Delafield 서명체 타이틀 + Noto Sans KR 외곽선 서브타이틀 (Pillow로 PNG에 그려 overlay) →
    H.264 / AAC, 라우드니스 -14 LUFS(인스타그램 권장) 로 정규화.
    렌더는 사용자가 구간을 확정한 뒤에만 실행되며, 재조정을 위해 원본은 작업 폴더에 보관됩니다(24시간 후 정리).
 3. **캡션** (`app/caption.py`) — `app/config.py` 의 `CAPTION_TEMPLATE` 에 아티스트 정보를 채웁니다.
@@ -47,7 +47,7 @@ python -m app.cli 공연영상.mp4 --artist 허지수 --handle j12xu \
 ## 설정
 
 `app/config.py` 에서 템플릿 문구, 폰트, 크기, 위치(화면 비율), 클립 길이·개수, 캡션 템플릿을 바꿀 수 있습니다.
-폰트는 `app/fonts/` 에 포함되어 있습니다 (Great Vibes, Noto Sans KR — OFL 라이선스).
+폰트는 `app/fonts/` 에 포함되어 있습니다 (Mrs Saint Delafield, Noto Sans KR — OFL 라이선스).
 
 ## 폴더 구조
 

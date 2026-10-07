@@ -8,20 +8,21 @@ JOBS_DIR = BASE_DIR.parent / "jobs"
 # ── 영상 템플릿 ─────────────────────────────────────────────
 TITLE_TEXT = "Concert Every Night"
 SUBTITLE_TEXT = "매일 밤 열리는 낭만적인 공연"
-TITLE_FONT = FONT_DIR / "GreatVibes-Regular.ttf"      # 필기체
+TITLE_FONT = FONT_DIR / "MrsSaintDelafield-Regular.ttf"   # 가는 서명체
 SUBTITLE_FONT = FONT_DIR / "NotoSansKR-Regular.ttf"    # 한글
 
 OUT_W, OUT_H = 1080, 1920          # 9:16 릴스
 FPS = 30
-TITLE_SIZE = 118                   # px
-SUBTITLE_SIZE = 40
-TITLE_Y = 0.275                    # 화면 높이 대비 비율
-SUBTITLE_Y = 0.355
-SUBTITLE_TRACKING = " "            # 글자 사이 간격(자간 효과). 레퍼런스처럼 넓게 띄움
+TITLE_WIDTH = 0.88                 # 타이틀 글자 폭 = 화면 폭의 88% (크기는 자동 계산)
+TITLE_Y = 0.29                     # 타이틀 세로 중심 (화면 높이 비율)
+SUBTITLE_SIZE = 35                 # px
+SUBTITLE_Y = 0.376                 # 서브타이틀 세로 중심
+SUBTITLE_TRACKING = 0.14           # 자간 (글자 크기 비율)
+SUBTITLE_WORD_GAP = 0.62           # 단어 사이 간격 (글자 크기 비율)
+SUBTITLE_STROKE = 2                # 검은 외곽선 두께 px
 
 CLIP_SECONDS = 30
 CLIP_COUNT = 3
-FADE_SECONDS = 0.6
 
 # ── 캡션 템플릿 ─────────────────────────────────────────────
 CAPTION_TEMPLATE = """서울 도심 속, 문을 여는 순간 펼쳐지는 🇫🇷파리의 어느 Jazz Bar.
