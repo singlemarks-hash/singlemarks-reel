@@ -3,7 +3,8 @@
 
 방식 (오디오 기반, 영상 디코딩 없이 빠름):
   1. ffmpeg로 모노 16kHz PCM 추출
-  2. 0.25초 단위로 RMS(음량)와 스펙트럼 플럭스(연주의 에너지 변화·박수 등) 계산
+  2. 0.5초 단위로 RMS(음량)와 스펙트럼 플럭스(연주의 에너지 변화·박수 등) 계산
+     (numpy 벡터 연산 — 30분 영상도 1초 안팎)
   3. 30초 창을 1초씩 밀며 점수화 → 무음 비율이 높은 창은 감점
   4. 겹치지 않도록 상위 N개 선택 (Non-max suppression)
   5. 시작점을 근처의 음량이 잠깐 꺼지는 지점(프레이즈 경계)으로 스냅
@@ -17,7 +18,7 @@ from dataclasses import dataclass, asdict
 import numpy as np
 
 SR = 16000
-HOP_SEC = 0.25
+HOP_SEC = 0.5
 HOP = int(SR * HOP_SEC)
 NFFT = 2048
 
@@ -67,26 +68,21 @@ def load_audio(path: str) -> np.ndarray:
 
 
 def features(pcm: np.ndarray):
-    """프레임별 RMS(dB)와 스펙트럼 플럭스 반환."""
+    """프레임별 RMS(dB)와 스펙트럼 플럭스 반환. 반복문 없이 한 번에 계산."""
     n_frames = max(1, len(pcm) // HOP)
-    rms = np.zeros(n_frames, dtype=np.float32)
-    flux = np.zeros(n_frames, dtype=np.float32)
+    pcm = pcm[: n_frames * HOP]
+    frames = pcm.reshape(n_frames, HOP)
+    rms = np.sqrt(np.mean(frames ** 2, axis=1) + 1e-12)
+
+    # 각 프레임 시작 지점에서 NFFT 샘플만 떼어 FFT (프레임당 2048샘플 = 0.128초)
+    padded = np.concatenate([pcm, np.zeros(NFFT, dtype=np.float32)])
+    idx = np.arange(n_frames)[:, None] * HOP + np.arange(NFFT)[None, :]
     win = np.hanning(NFFT).astype(np.float32)
-    prev_mag = None
-    for i in range(n_frames):
-        s = i * HOP
-        frame = pcm[s:s + HOP]
-        rms[i] = np.sqrt(np.mean(frame ** 2) + 1e-12)
-        seg = pcm[s:s + NFFT]
-        if len(seg) < NFFT:
-            seg = np.pad(seg, (0, NFFT - len(seg)))
-        mag = np.abs(np.fft.rfft(seg * win))
-        mag = np.log1p(mag)
-        if prev_mag is not None:
-            d = mag - prev_mag
-            flux[i] = np.sum(d[d > 0])
-        prev_mag = mag
-    rms_db = 20 * np.log10(rms + 1e-9)
+    mag = np.log1p(np.abs(np.fft.rfft(padded[idx] * win, axis=1)))
+    d = np.diff(mag, axis=0)
+    flux = np.concatenate([[0.0], np.sum(np.where(d > 0, d, 0), axis=1)]).astype(np.float32)
+
+    rms_db = 20 * np.log10(rms + 1e-9).astype(np.float32)
     return rms_db, flux
 
 
@@ -98,7 +94,7 @@ def _norm(x: np.ndarray) -> np.ndarray:
 
 
 def find_highlights(path: str, clip_sec: float = 30, count: int = 3,
-                    min_gap_sec: float = 20, progress=None) -> list[Segment]:
+                    min_gap_sec: float | None = None, progress=None) -> list[Segment]:
     info = probe(path)
     duration = info["duration"]
     if progress:
@@ -113,6 +109,10 @@ def find_highlights(path: str, clip_sec: float = 30, count: int = 3,
 
     if duration <= clip_sec + 1:
         return [Segment(0.0, round(min(duration, clip_sec), 2), 1.0)]
+
+    if min_gap_sec is None:
+        # 공연 전체에 고르게 퍼지도록: 영상 길이의 10% (최소 20초). 30분이면 3분 간격.
+        min_gap_sec = max(20.0, duration * 0.10)
 
     loud = _norm(rms_db)
     dyn = _norm(flux)
