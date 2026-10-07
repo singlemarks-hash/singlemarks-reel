@@ -32,7 +32,7 @@ textarea{min-height:88px;resize:vertical}
 .progress{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:22px}
 .progress i{display:block;height:100%;width:0;background:var(--fg);transition:width .5s}
 .stage{font-size:13px;color:var(--muted);margin-top:10px;min-height:18px}
-.stage.err{color:var(--err);white-space:pre-wrap;font-size:12px}
+.stage.err{color:var(--err);white-space:pre-wrap;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.5}
 .clips{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 @media(max-width:560px){.clips{grid-template-columns:1fr 1fr}}
 .clip video{width:100%;aspect-ratio:9/16;background:#000;border-radius:6px;display:block}
@@ -78,6 +78,7 @@ hr{border:0;border-top:1px solid var(--line);margin:48px 0}
 <div class="wrap">
   <h1>Reel Maker</h1>
   <p class="lead">공연 영상을 올리면 하이라이트 30초 × 3개와 캡션을 만듭니다.</p>
+  <div class="stage err hidden" id="health" style="margin:-30px 0 30px"></div>
 
   <form id="form">
     <h2>설정</h2>
@@ -150,6 +151,8 @@ const parse=t=>{const m=String(t).trim().match(/^(\d+):(\d{1,2})$/);if(m)return 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const mb=b=>b>=1073741824?(b/1073741824).toFixed(2)+' GB':(b/1048576).toFixed(0)+' MB';
 const eta=s=>s<60?`약 ${Math.ceil(s)}초`:`약 ${Math.ceil(s/60)}분`;
+
+fetch('/api/health').then(r=>r.json()).then(h=>{if(!h.ok){const el=$('#health');el.classList.remove('hidden');el.textContent='환경 문제:\n'+h.problems.join('\n')}}).catch(()=>{});
 
 /* ── 1단계: 파일 선택 즉시 업로드 + 분석 ── */
 function startUpload(){

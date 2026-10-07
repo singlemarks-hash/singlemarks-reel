@@ -13,11 +13,21 @@ from . import config as C
 from pydantic import BaseModel
 
 from .pipeline import Job, analyze_job, cleanup_old_jobs, render_job
+from .render import check_ffmpeg
 
 app = FastAPI(title="Singlemarks Reel Maker")
 C.JOBS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/jobs", StaticFiles(directory=str(C.JOBS_DIR)), name="jobs")
 STATIC = Path(__file__).parent / "static"
+FFMPEG_PROBLEMS = check_ffmpeg()
+for _p in FFMPEG_PROBLEMS:
+    print("[경고]", _p)
+
+
+@app.get("/api/health")
+def health():
+    return {"ok": not FFMPEG_PROBLEMS, "problems": FFMPEG_PROBLEMS}
+
 
 ALLOWED = {".mp4", ".mov", ".m4v", ".mkv", ".avi", ".webm", ".mts"}
 

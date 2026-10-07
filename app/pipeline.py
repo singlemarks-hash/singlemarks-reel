@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 import time
 import traceback
 import uuid
@@ -12,6 +13,15 @@ from . import config as C
 from .caption import build_caption
 from .highlight import find_highlights, probe
 from .render import render_clip, thumbnail
+
+
+def _errmsg(e: Exception) -> str:
+    if isinstance(e, subprocess.CalledProcessError):
+        tail = "\n".join((e.stderr or "").strip().splitlines()[-12:]) if isinstance(e.stderr, str) else ""
+        return f"ffmpeg 종료 코드 {e.returncode}\n{tail}"
+    if isinstance(e, (RuntimeError, ValueError)):
+        return str(e)
+    return f"{type(e).__name__}: {e}\n{traceback.format_exc()[-800:]}"
 
 
 class Job:
@@ -68,7 +78,7 @@ def analyze_job(job: Job, src: Path, clip_sec: float = C.CLIP_SECONDS,
                    segments=[s.to_dict() for s in segs], curve=curve,
                    clip_seconds=clip_sec)
     except Exception as e:  # noqa: BLE001
-        job.update(status="error", stage="오류", error=f"{e}\n{traceback.format_exc()[-1500:]}")
+        job.update(status="error", stage="오류", error=_errmsg(e))
 
 
 def render_job(job: Job, segments: list[dict], artist_name: str, artist_handle: str,
@@ -102,7 +112,7 @@ def render_job(job: Job, segments: list[dict], artist_name: str, artist_handle: 
         (job.dir / "caption.txt").write_text(caption, encoding="utf-8")
         job.update(status="done", stage="완료", progress=100, caption=caption)
     except Exception as e:  # noqa: BLE001
-        job.update(status="error", stage="오류", error=f"{e}\n{traceback.format_exc()[-1500:]}")
+        job.update(status="error", stage="오류", error=_errmsg(e))
 
 
 def run_job(job: Job, src: Path, artist_name: str, artist_handle: str, schedule: str,
