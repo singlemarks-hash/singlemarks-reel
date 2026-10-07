@@ -1,4 +1,5 @@
 """고정 템플릿 설정. 아티스트만 바뀌고 나머지는 항상 동일하게 유지됩니다."""
+import re
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -8,7 +9,20 @@ JOBS_DIR = BASE_DIR.parent / "jobs"
 # ── 영상 템플릿 ─────────────────────────────────────────────
 TITLE_TEXT = "Concert Every Night"
 SUBTITLE_TEXT = "매일 밤 열리는 낭만적인 공연"
-TITLE_FONT = FONT_DIR / "MrsSaintDelafield-Regular.ttf"   # 가는 서명체
+TITLE_FONT = FONT_DIR / "QwitcherGrypen.ttf"     # 기본 타이틀 폰트 (가는 서명체)
+# app/fonts/ 에 TTF/OTF 를 넣으면 UI 목록에 자동으로 나타납니다 (한글 폰트 제외)
+TITLE_FONT_EXCLUDE = {"NotoSansKR-Regular.ttf"}
+
+
+def title_fonts() -> list[dict]:
+    out = []
+    for f in sorted(FONT_DIR.glob("*.[ot]tf")):
+        if f.name in TITLE_FONT_EXCLUDE:
+            continue
+        name = f.stem.replace("-Regular", "").replace("_", " ")
+        name = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", name)
+        out.append({"file": f.name, "name": name, "default": f == TITLE_FONT})
+    return out
 SUBTITLE_FONT = FONT_DIR / "NotoSansKR-Regular.ttf"    # 한글
 
 OUT_W, OUT_H = 1080, 1920          # 9:16 릴스

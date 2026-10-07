@@ -44,6 +44,13 @@ python -m app.cli 공연영상.mp4 --artist 허지수 --handle j12xu \
    렌더는 사용자가 구간을 확정한 뒤에만 실행되며, 재조정을 위해 원본은 작업 폴더에 보관됩니다(24시간 후 정리).
 3. **캡션** (`app/caption.py`) — `app/config.py` 의 `CAPTION_TEMPLATE` 에 아티스트 정보를 채웁니다.
 
+## 타이틀 폰트 바꾸기
+
+구간 조정 화면의 **타이틀 폰트** 메뉴에서 고를 수 있고, 선택한 폰트로 실제 비율의 미리보기가 그려집니다.
+`app/fonts/` 에 TTF/OTF 파일을 넣으면 서버를 재시작하지 않아도 목록에 자동으로 나타납니다
+(예: 구매한 Brittany Signature 파일을 넣기). 기본값은 `app/config.py` 의 `TITLE_FONT` 입니다.
+포함된 무료 폰트(OFL): Qwitcher Grypen(기본), Sacramento, Whisper, Tangerine, Mr De Haviland, Mrs Saint Delafield.
+
 ## 설정
 
 `app/config.py` 에서 템플릿 문구, 폰트, 크기, 위치(화면 비율), 클립 길이·개수, 캡션 템플릿을 바꿀 수 있습니다.

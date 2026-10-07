@@ -82,13 +82,14 @@ def analyze_job(job: Job, src: Path, clip_sec: float = C.CLIP_SECONDS,
 
 
 def render_job(job: Job, segments: list[dict], artist_name: str, artist_handle: str,
-               schedule: str, focus: float = 0.5):
+               schedule: str, focus: float = 0.5, title_font: str | None = None):
     """2단계: 확정된 구간으로 릴스를 렌더링합니다. 원본은 재조정을 위해 보관합니다."""
     try:
         src = job.dir / job.state["source"]["file"]
         info = job.state["source"]
         job.update(status="rendering", clips=[], caption="", progress=25,
-                   segments=segments, artist={"name": artist_name, "handle": artist_handle})
+                   segments=segments, artist={"name": artist_name, "handle": artist_handle},
+                   title_font=title_font)
         for old in job.dir.glob("reel_*"):
             old.unlink()
 
@@ -98,7 +99,7 @@ def render_job(job: Job, segments: list[dict], artist_name: str, artist_handle: 
                        progress=25 + int(70 * (i - 1) / len(segments)))
             out = job.dir / f"reel_{i}.mp4"
             render_clip(str(src), s["start"], s["end"], out, focus=focus,
-                        src_w=info["width"], src_h=info["height"])
+                        src_w=info["width"], src_h=info["height"], title_font=title_font)
             thumb = job.dir / f"reel_{i}.jpg"
             thumbnail(out, thumb)
             clips.append({

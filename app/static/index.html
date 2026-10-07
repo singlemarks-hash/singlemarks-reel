@@ -15,7 +15,7 @@ h1{font-size:22px;font-weight:600;letter-spacing:-.01em;margin:0 0 6px}
 .tpl b{color:var(--fg);font-weight:500}
 h2{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:40px 0 14px}
 label{display:block;font-size:13px;color:var(--muted);margin:18px 0 6px}
-input[type=text],textarea,input[type=number]{width:100%;background:#fff;border:1px solid var(--line2);border-radius:6px;padding:10px 12px;font:inherit;color:var(--fg);outline:none;transition:border-color .15s}
+input[type=text],textarea,input[type=number],select{width:100%;background:#fff;border:1px solid var(--line2);border-radius:6px;padding:10px 12px;font:inherit;color:var(--fg);outline:none;transition:border-color .15s}
 input:focus,textarea:focus{border-color:var(--fg)}
 textarea{min-height:88px;resize:vertical}
 .drop{border:1px dashed var(--line2);border-radius:8px;padding:36px 16px;text-align:center;color:var(--muted);cursor:pointer;transition:.15s;background:#fff}
@@ -116,6 +116,10 @@ hr{border:0;border-top:1px solid var(--line);margin:48px 0}
     <video class="preview" id="preview" controls playsinline preload="metadata"></video>
     <div class="hint" id="previewHint">그래프를 클릭하거나 끌어서 시작점을 옮기고, ▶ 로 그 구간을 미리 봅니다. 회색 산은 오디오 에너지(음량·연주 변화)입니다.</div>
     <div id="segList"></div>
+    <label>타이틀 폰트</label>
+    <select id="fontSel"></select>
+    <div class="hint">app/fonts 폴더에 TTF를 넣으면 목록에 자동으로 추가됩니다. 미리보기는 아래 캔버스에 실제 비율로 표시됩니다.</div>
+    <canvas id="fontPreview" width="1080" height="300" style="width:100%;height:auto;border-radius:6px;margin-top:10px;background:#2a2219"></canvas>
     <div class="actions">
       <button class="btn" id="render" type="button">이 구간으로 렌더링</button>
       <button class="btn ghost" id="addSeg" type="button">구간 추가</button>
@@ -273,11 +277,28 @@ $('#addSeg').onclick=()=>{if(segs.length>=6)return;
   segs.push({start:best,end:Math.min(duration,best+clipLen)}); segs.sort((a,b)=>a.start-b.start); renderSegs()};
 $('#resetSeg').onclick=()=>{segs=autoSegs.map(s=>({...s}));renderSegs()};
 
+/* 폰트 선택 + 미리보기 */
+let fontFaces={};
+fetch('/api/fonts').then(r=>r.json()).then(list=>{
+  const sel=$('#fontSel'); sel.innerHTML=list.map(f=>`<option value="${f.file}" ${f.default?'selected':''}>${f.name}</option>`).join('');
+  list.forEach(f=>{const ff=new FontFace('tf_'+f.file.replace(/\W/g,'_'),`url(/fonts/${encodeURIComponent(f.file)})`);ff.load().then(x=>{document.fonts.add(x);fontFaces[f.file]=x.family;if(sel.value===f.file)drawFontPreview()}).catch(()=>{})});
+  sel.onchange=drawFontPreview;
+}).catch(()=>{});
+function drawFontPreview(){
+  const cv=$('#fontPreview'),ctx=cv.getContext('2d'),fam=fontFaces[$('#fontSel').value]; ctx.clearRect(0,0,cv.width,cv.height);
+  if(!fam)return;
+  ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  let size=100; ctx.font=`${size}px "${fam}"`; size=Math.floor(100*1080*0.88/ctx.measureText('Concert Every Night').width);
+  ctx.font=`${size}px "${fam}"`; ctx.fillText('Concert Every Night',540,130);
+  ctx.font='35px "Noto Sans KR",sans-serif'; ctx.lineWidth=4; ctx.strokeStyle='#000'; ctx.letterSpacing='5px';
+  ctx.strokeText('매일 밤 열리는 낭만적인 공연',540,250); ctx.fillText('매일 밤 열리는 낭만적인 공연',540,250);
+}
+
 /* ── 3단계: 렌더 ── */
 $('#render').onclick=async()=>{
   pv.pause(); const bar2=$('#bar2'),st2=$('#stage2');
   $('#render').disabled=true; st2.className='stage'; st2.textContent='렌더링 시작'; $('#prog2').classList.remove('hidden'); bar2.style.width='25%';
-  const body={segments:segs,artist_name:$('#artistName').value,artist_handle:$('#artistHandle').value,schedule:$('#schedule').value};
+  const body={segments:segs,artist_name:$('#artistName').value,artist_handle:$('#artistHandle').value,schedule:$('#schedule').value,title_font:$('#fontSel').value};
   const r=await fetch(`/api/jobs/${jobId}/render`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok){st2.className='stage err';st2.textContent='오류: '+(await r.text());$('#render').disabled=false;return}
   pollRender();

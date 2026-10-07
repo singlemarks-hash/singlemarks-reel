@@ -43,13 +43,23 @@ def _has_vignette() -> bool:
     return _HAS_VIGNETTE
 
 
+def resolve_title_font(name: str | None) -> Path:
+    """UI에서 넘어온 파일명을 app/fonts 안의 경로로 안전하게 변환."""
+    if name:
+        cand = C.FONT_DIR / Path(name).name
+        if cand.exists() and cand.suffix.lower() in (".ttf", ".otf"):
+            return cand
+    return C.TITLE_FONT
+
+
 def render_clip(src: str, start: float, end: float, out: Path, focus: float = 0.5,
-                src_w: int = 1920, src_h: int = 1080) -> Path:
+                src_w: int = 1920, src_h: int = 1080, title_font: str | None = None) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     clip_sec = end - start
-    overlay_png = out.parent / "_overlay.png"
+    font = resolve_title_font(title_font)
+    overlay_png = out.parent / f"_overlay_{font.stem}.png"
     if not overlay_png.exists():
-        build_overlay(overlay_png)
+        build_overlay(overlay_png, title_font=font)
 
     af = "loudnorm=I=-14:TP=-1.5:LRA=11"
     cmd = [

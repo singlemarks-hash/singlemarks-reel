@@ -28,12 +28,13 @@ def _fit_font(path: Path, text: str, target_w: float) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(str(path), max(10, int(100 * target_w / w)))
 
 
-def build_overlay(out: Path, w: int = C.OUT_W, h: int = C.OUT_H) -> Path:
+def build_overlay(out: Path, w: int = C.OUT_W, h: int = C.OUT_H,
+                  title_font: Path | None = None) -> Path:
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
 
     # 타이틀: 가는 서명체, 화면 폭의 TITLE_WIDTH 만큼 차지하도록 크기 자동 조정
-    title_font = _fit_font(C.TITLE_FONT, C.TITLE_TEXT, w * C.TITLE_WIDTH)
+    title_font = _fit_font(title_font or C.TITLE_FONT, C.TITLE_TEXT, w * C.TITLE_WIDTH)
     bbox = d.textbbox((0, 0), C.TITLE_TEXT, font=title_font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     tx, ty = (w - tw) / 2 - bbox[0], h * C.TITLE_Y - th / 2 - bbox[1]

@@ -18,6 +18,7 @@ from .render import check_ffmpeg
 app = FastAPI(title="Singlemarks Reel Maker")
 C.JOBS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/jobs", StaticFiles(directory=str(C.JOBS_DIR)), name="jobs")
+app.mount("/fonts", StaticFiles(directory=str(C.FONT_DIR)), name="fonts")
 STATIC = Path(__file__).parent / "static"
 FFMPEG_PROBLEMS = check_ffmpeg()
 for _p in FFMPEG_PROBLEMS:
@@ -87,6 +88,12 @@ class RenderIn(BaseModel):
     artist_name: str | None = None
     artist_handle: str | None = None
     schedule: str | None = None
+    title_font: str | None = None
+
+
+@app.get("/api/fonts")
+def fonts():
+    return C.title_fonts()
 
 
 @app.post("/api/jobs/{job_id}/render")
@@ -116,7 +123,8 @@ def start_render(job_id: str, body: RenderIn):
     handle = body.artist_handle if body.artist_handle is not None else artist.get("handle", "")
     schedule = body.schedule if body.schedule is not None else st.get("schedule", "")
     threading.Thread(target=render_job,
-                     args=(job, segs, name, handle, schedule, st.get("focus", 0.5)),
+                     args=(job, segs, name, handle, schedule, st.get("focus", 0.5),
+                           body.title_font),
                      daemon=True).start()
     return {"id": job_id, "segments": segs}
 
