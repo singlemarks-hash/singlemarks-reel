@@ -94,7 +94,8 @@ def _norm(x: np.ndarray) -> np.ndarray:
 
 
 def find_highlights(path: str, clip_sec: float = 30, count: int = 3,
-                    min_gap_sec: float | None = None, progress=None) -> list[Segment]:
+                    min_gap_sec: float | None = None, progress=None,
+                    return_curve: bool = False):
     info = probe(path)
     duration = info["duration"]
     if progress:
@@ -108,7 +109,8 @@ def find_highlights(path: str, clip_sec: float = 30, count: int = 3,
     duration = min(duration, total) if duration else total
 
     if duration <= clip_sec + 1:
-        return [Segment(0.0, round(min(duration, clip_sec), 2), 1.0)]
+        segs = [Segment(0.0, round(min(duration, clip_sec), 2), 1.0)]
+        return (segs, [1.0] * 60) if return_curve else segs
 
     if min_gap_sec is None:
         # 공연 전체에 고르게 퍼지도록: 영상 길이의 10% (최소 20초). 30분이면 3분 간격.
@@ -166,4 +168,19 @@ def find_highlights(path: str, clip_sec: float = 30, count: int = 3,
         segs.append(Segment(round(start, 2), round(end, 2), round(float(scores[i]), 4)))
 
     segs.sort(key=lambda s: s.start)
+    if return_curve:
+        return segs, energy_curve(loud, dyn)
     return segs
+
+
+def energy_curve(loud: np.ndarray, dyn: np.ndarray, points: int = 300) -> list[float]:
+    """UI 타임라인용으로 영상 전체의 에너지를 0~1 값 N개로 요약합니다."""
+    e = 0.55 * loud + 0.45 * dyn
+    n = len(e)
+    if n <= points:
+        out = e
+    else:
+        edges = np.linspace(0, n, points + 1).astype(int)
+        out = np.array([e[a:b].mean() if b > a else 0 for a, b in zip(edges[:-1], edges[1:])])
+    mx = out.max() if len(out) and out.max() > 0 else 1.0
+    return [round(float(v / mx), 3) for v in out]

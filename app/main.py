@@ -10,7 +10,9 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config as C
-from .pipeline import Job, cleanup_old_jobs, run_job
+from pydantic import BaseModel
+
+from .pipeline import Job, analyze_job, cleanup_old_jobs, render_job
 
 app = FastAPI(title="Singlemarks Reel Maker")
 C.JOBS_DIR.mkdir(parents=True, exist_ok=True)
@@ -57,15 +59,56 @@ async def create_job(
     with src.open("wb") as f:
         shutil.copyfileobj(video.file, f, length=1024 * 1024)
     job.update(stage="업로드 완료, 분석 대기 중", progress=2,
-               artist={"name": artist_name, "handle": artist_handle})
+               artist={"name": artist_name, "handle": artist_handle}, schedule=schedule,
+               focus=focus)
 
-    t = threading.Thread(
-        target=run_job,
-        args=(job, src, artist_name, artist_handle, schedule, clip_seconds, clip_count, focus),
-        daemon=True,
-    )
-    t.start()
+    threading.Thread(target=analyze_job, args=(job, src, clip_seconds, clip_count),
+                     daemon=True).start()
     return {"id": job.id}
+
+
+class SegmentIn(BaseModel):
+    start: float
+    end: float
+
+
+class RenderIn(BaseModel):
+    segments: list[SegmentIn]
+    artist_name: str | None = None
+    artist_handle: str | None = None
+    schedule: str | None = None
+
+
+@app.post("/api/jobs/{job_id}/render")
+def start_render(job_id: str, body: RenderIn):
+    st = Job.load(job_id)
+    if st is None:
+        raise HTTPException(404, "작업을 찾을 수 없습니다.")
+    if st["status"] not in ("ready", "done", "error"):
+        raise HTTPException(409, "아직 분석이 끝나지 않았습니다.")
+    src = C.JOBS_DIR / job_id / st["source"]["file"]
+    if not src.exists():
+        raise HTTPException(410, "원본 영상이 삭제되어 다시 렌더링할 수 없습니다. 새로 업로드해 주세요.")
+    if not body.segments or len(body.segments) > 6:
+        raise HTTPException(400, "구간은 1~6개여야 합니다.")
+    dur = st["source"]["duration"]
+    segs = []
+    for sg in body.segments:
+        start = max(0.0, min(sg.start, dur - 1))
+        end = max(start + 5, min(sg.end, dur))
+        segs.append({"start": round(start, 2), "end": round(end, 2)})
+    segs.sort(key=lambda x: x["start"])
+
+    job = Job(job_id)
+    job.state = st
+    artist = st.get("artist") or {}
+    name = body.artist_name if body.artist_name is not None else artist.get("name", "")
+    handle = body.artist_handle if body.artist_handle is not None else artist.get("handle", "")
+    schedule = body.schedule if body.schedule is not None else st.get("schedule", "")
+    threading.Thread(target=render_job,
+                     args=(job, segs, name, handle, schedule, st.get("focus", 0.5)),
+                     daemon=True).start()
+    return {"id": job_id, "segments": segs}
 
 
 @app.get("/api/jobs/{job_id}")
