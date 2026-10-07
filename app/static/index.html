@@ -23,8 +23,6 @@ textarea{min-height:88px;resize:vertical}
 .drop strong{display:block;color:var(--fg);font-weight:500;margin-bottom:4px}
 .drop small{font-size:12px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.range{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)}
-input[type=range]{flex:1;accent-color:#111}
 .btn{display:inline-flex;align-items:center;justify-content:center;background:var(--fg);color:#fff;border:1px solid var(--fg);border-radius:6px;padding:10px 18px;font:inherit;font-weight:500;cursor:pointer;margin-top:28px;transition:.15s}
 .btn:hover{background:#000}
 .btn:disabled{background:#f0f0f0;border-color:#f0f0f0;color:#aaa;cursor:not-allowed}
@@ -57,13 +55,9 @@ hr{border:0;border-top:1px solid var(--line);margin:48px 0}
     <h2>영상</h2>
     <div class="drop" id="drop">
       <strong id="dropTitle">영상 파일을 끌어다 놓거나 클릭</strong>
-      <small>MP4, MOV, MKV · 가로 영상은 9:16으로 세로 크롭</small>
+      <small>MP4, MOV, MKV · 결과는 항상 9:16 (1080×1920)</small>
       <input type="file" id="file" name="video" accept="video/*" class="hidden">
     </div>
-
-    <label>크롭 중심</label>
-    <div class="range"><span>왼쪽</span><input type="range" id="focus" name="focus" min="0" max="1" step="0.05" value="0.5"><span>오른쪽</span></div>
-    <div class="hint">연주자가 한쪽으로 치우쳐 있을 때 조절합니다.</div>
 
     <div class="row">
       <div><label>클립 길이 (초)</label><input type="number" name="clip_seconds" value="30" min="10" max="90"></div>
