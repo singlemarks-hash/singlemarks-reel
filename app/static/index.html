@@ -46,6 +46,15 @@ textarea{min-height:88px;resize:vertical}
 hr{border:0;border-top:1px solid var(--line);margin:48px 0}
 .hidden{display:none}
 
+/* 업로드 카드 */
+.upcard{border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.uphead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.upname{font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upmeta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:8px;font-variant-numeric:tabular-nums}
+.upmeta .err{color:var(--err)}
+.progress.busy i{width:100%!important;background:linear-gradient(90deg,var(--line) 0%,var(--fg) 50%,var(--line) 100%);background-size:200% 100%;animation:slide 1.2s linear infinite}
+@keyframes slide{from{background-position:200% 0}to{background-position:0 0}}
+
 /* 구간 조정 */
 .preview{width:100%;max-height:360px;background:#000;border-radius:6px;display:block}
 .preview.unavailable{display:none}
@@ -71,31 +80,33 @@ hr{border:0;border-top:1px solid var(--line);margin:48px 0}
   <p class="lead">공연 영상을 올리면 하이라이트 30초 × 3개와 캡션을 만듭니다.</p>
 
   <form id="form">
+    <h2>설정</h2>
+    <div class="row">
+      <div><label style="margin-top:0">클립 길이 (초)</label><input type="number" name="clip_seconds" id="clipSec" value="30" min="10" max="90"></div>
+      <div><label style="margin-top:0">클립 개수</label><input type="number" name="clip_count" value="3" min="1" max="6"></div>
+    </div>
+
     <h2>영상</h2>
     <div class="drop" id="drop">
-      <strong id="dropTitle">영상 파일을 끌어다 놓거나 클릭</strong>
-      <small>MP4, MOV, MKV · 결과는 항상 9:16 (1080×1920)</small>
+      <strong>영상 파일을 끌어다 놓거나 클릭</strong>
+      <small>MP4, MOV, MKV · 선택하면 바로 업로드와 분석이 시작됩니다 · 결과는 항상 9:16</small>
       <input type="file" id="file" name="video" accept="video/*" class="hidden">
     </div>
-
-    <div class="row">
-      <div><label>클립 길이 (초)</label><input type="number" name="clip_seconds" id="clipSec" value="30" min="10" max="90"></div>
-      <div><label>클립 개수</label><input type="number" name="clip_count" value="3" min="1" max="6"></div>
+    <div class="upcard hidden" id="upcard">
+      <div class="uphead"><span class="upname" id="upname"></span><button class="btn ghost" id="cancel" type="button">취소</button></div>
+      <div class="progress" style="margin-top:12px"><i id="bar"></i></div>
+      <div class="upmeta"><span id="stage"></span><span id="upright"></span></div>
     </div>
 
-    <h2>아티스트</h2>
-    <label>이름</label>
-    <input type="text" name="artist_name" id="artistName" placeholder="허지수" required>
+    <h2>아티스트 <span style="text-transform:none;letter-spacing:0;font-weight:400">· 캡션에 들어갑니다. 업로드 중에 입력해도 됩니다</span></h2>
+    <label style="margin-top:0">이름</label>
+    <input type="text" name="artist_name" id="artistName" placeholder="허지수">
     <label>인스타그램</label>
     <input type="text" name="artist_handle" id="artistHandle" placeholder="@j12xu">
     <label>다음 공연 일정</label>
     <textarea name="schedule" id="schedule" placeholder="10/6(화)&#10;1부: 8:00~8:30"></textarea>
 
     <div class="tpl">영상 템플릿은 고정됩니다<br><b>Concert Every Night</b> · <b>매일 밤 열리는 낭만적인 공연</b></div>
-
-    <div><button class="btn" id="submit" type="submit" disabled>하이라이트 분석</button></div>
-    <div class="progress hidden" id="prog"><i id="bar"></i></div>
-    <div class="stage" id="stage"></div>
   </form>
 
   <section class="hidden" id="adjust">
@@ -125,39 +136,66 @@ hr{border:0;border-top:1px solid var(--line);margin:48px 0}
 
 <script>
 const $=s=>document.querySelector(s);
-const file=$('#file'),drop=$('#drop'),submit=$('#submit'),bar=$('#bar'),stage=$('#stage');
-let jobId=null, job=null, segs=[], autoSegs=[], clipLen=30, duration=0, curve=[];
+const file=$('#file'),drop=$('#drop'),bar=$('#bar'),stage=$('#stage'),upcard=$('#upcard'),upright=$('#upright');
+let jobId=null, job=null, segs=[], autoSegs=[], clipLen=30, duration=0, curve=[], xhr=null, pollTimer=null;
 
 drop.onclick=()=>file.click();
 ['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
 ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
-drop.addEventListener('drop',ev=>{file.files=ev.dataTransfer.files;onFile()});
-file.onchange=onFile;
-function onFile(){const f=file.files[0];if(!f)return;$('#dropTitle').textContent=`${f.name} · ${(f.size/1048576).toFixed(0)} MB`;submit.disabled=false}
+drop.addEventListener('drop',ev=>{if(ev.dataTransfer.files.length){file.files=ev.dataTransfer.files;startUpload()}});
+file.onchange=startUpload;
 
 const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 const parse=t=>{const m=String(t).trim().match(/^(\d+):(\d{1,2})$/);if(m)return +m[1]*60+ +m[2];const n=parseFloat(t);return isNaN(n)?null:n};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const mb=b=>b>=1073741824?(b/1073741824).toFixed(2)+' GB':(b/1048576).toFixed(0)+' MB';
+const eta=s=>s<60?`약 ${Math.ceil(s)}초`:`약 ${Math.ceil(s/60)}분`;
 
-/* ── 1단계: 업로드 + 분석 ── */
-$('#form').onsubmit=async ev=>{
-  ev.preventDefault(); if(!file.files[0])return;
-  submit.disabled=true; stage.className='stage'; stage.textContent='업로드 중'; bar.style.width='1%'; $('#prog').classList.remove('hidden');
+/* ── 1단계: 파일 선택 즉시 업로드 + 분석 ── */
+function startUpload(){
+  const f=file.files[0]; if(!f)return;
+  if(xhr){xhr.abort();xhr=null} clearTimeout(pollTimer);
   $('#adjust').classList.add('hidden'); $('#result').classList.add('hidden');
-  const fd=new FormData(ev.target);
-  jobId=await new Promise((res,rej)=>{const x=new XMLHttpRequest();x.open('POST','/api/jobs');
-    x.upload.onprogress=e=>{if(e.lengthComputable){const p=e.loaded/e.total;bar.style.width=(p*2)+'%';stage.textContent=`업로드 중 ${(p*100).toFixed(0)}%`}};
-    x.onload=()=>x.status<300?res(JSON.parse(x.response).id):rej(new Error(x.response));x.onerror=()=>rej(new Error('네트워크 오류'));x.send(fd)})
-    .catch(e=>{stage.className='stage err';stage.textContent='업로드 실패: '+e.message;submit.disabled=false});
-  if(!jobId)return;
-  pollAnalyze();
-};
+  drop.classList.add('hidden'); upcard.classList.remove('hidden');
+  $('#upname').textContent=`${f.name} · ${mb(f.size)}`;
+  upcard.querySelector('.progress').classList.remove('busy'); bar.style.width='0%';
+  stage.className=''; stage.textContent='업로드 준비 중'; upright.textContent='';
+
+  const fd=new FormData(); fd.append('video',f);
+  fd.append('clip_seconds',$('#clipSec').value); fd.append('clip_count',$('[name=clip_count]').value);
+  fd.append('artist_name',$('#artistName').value); fd.append('artist_handle',$('#artistHandle').value); fd.append('schedule',$('#schedule').value);
+
+  const t0=Date.now(); let lastLoaded=0,lastT=t0,speed=0;
+  xhr=new XMLHttpRequest(); xhr.open('POST','/api/jobs');
+  xhr.upload.onprogress=e=>{
+    if(!e.lengthComputable)return;
+    const now=Date.now(); const dt=(now-lastT)/1000;
+    if(dt>0.5){speed=0.7*speed+0.3*((e.loaded-lastLoaded)/dt);lastLoaded=e.loaded;lastT=now}
+    const p=e.loaded/e.total; bar.style.width=(p*100).toFixed(1)+'%';
+    stage.textContent=`업로드 중 ${(p*100).toFixed(0)}% · ${mb(e.loaded)} / ${mb(e.total)}`;
+    upright.textContent=speed>0?`${(speed/1048576).toFixed(1)} MB/s · ${eta((e.total-e.loaded)/speed)} 남음`:'';
+  };
+  xhr.upload.onload=()=>{stage.textContent='업로드 완료 · 서버에서 분석을 시작합니다';upright.textContent='';upcard.querySelector('.progress').classList.add('busy')};
+  xhr.onreadystatechange=function(){
+    if(this.readyState!==4||this.status===0)return;
+    if(this.status>=300){fail('업로드 실패: '+(this.responseText||this.status));return}
+    jobId=JSON.parse(this.responseText).id; pollAnalyze();
+  };
+  xhr.onerror=()=>fail('네트워크 오류로 업로드가 끊겼습니다. 서버가 켜져 있는지 확인하세요.');
+  xhr.onabort=()=>resetUpload();
+  xhr.send(fd);
+}
+function fail(msg){stage.className='err';stage.textContent=msg;upright.textContent='';upcard.querySelector('.progress').classList.remove('busy');bar.style.width='0%';$('#cancel').textContent='다시 선택'}
+function resetUpload(){if(xhr){xhr.abort();xhr=null}clearTimeout(pollTimer);file.value='';upcard.classList.add('hidden');drop.classList.remove('hidden');$('#cancel').textContent='취소';upcard.querySelector('.progress').classList.remove('busy')}
+$('#cancel').onclick=resetUpload;
+
 async function pollAnalyze(){
-  const st=await (await fetch('/api/jobs/'+jobId)).json();
-  bar.style.width=st.progress+'%'; stage.textContent=st.stage;
-  if(st.status==='error'){stage.className='stage err';stage.textContent='오류: '+st.error;submit.disabled=false;return}
-  if(st.status!=='ready'){setTimeout(pollAnalyze,1200);return}
-  job=st; submit.disabled=false; stage.textContent='분석 완료';
+  let st; try{st=await (await fetch('/api/jobs/'+jobId)).json()}catch(e){pollTimer=setTimeout(pollAnalyze,2000);return}
+  stage.textContent=st.stage; upright.textContent='분석 중';
+  if(st.status==='error'){fail('오류: '+st.error);return}
+  if(st.status!=='ready'){pollTimer=setTimeout(pollAnalyze,1200);return}
+  job=st; upcard.querySelector('.progress').classList.remove('busy'); bar.style.width='100%';
+  stage.textContent='분석 완료 · 아래에서 구간을 확인하세요'; upright.textContent=`원본 ${fmt(st.source.duration)}`; $('#cancel').textContent='다른 영상';
   duration=st.source.duration; curve=st.curve||[]; clipLen=st.clip_seconds||30;
   autoSegs=st.segments.map(s=>({start:s.start,end:s.end}));
   segs=autoSegs.map(s=>({...s}));
@@ -260,8 +298,7 @@ function show(st){
 }
 $('#readjust').onclick=()=>$('#adjust').scrollIntoView({behavior:'smooth'});
 $('#copy').onclick=async()=>{await navigator.clipboard.writeText($('#caption').textContent);$('#copy').textContent='복사됨';setTimeout(()=>$('#copy').textContent='복사',1500)};
-$('#again').onclick=()=>{window.scrollTo({top:0,behavior:'smooth'});file.value='';$('#dropTitle').textContent='영상 파일을 끌어다 놓거나 클릭';submit.disabled=true;
-  ['#result','#adjust','#prog','#prog2'].forEach(s=>$(s).classList.add('hidden'));bar.style.width='0';stage.textContent='';$('#stage2').textContent=''};
+$('#again').onclick=()=>{window.scrollTo({top:0,behavior:'smooth'});resetUpload();['#result','#adjust','#prog2'].forEach(x=>$(x).classList.add('hidden'));$('#stage2').textContent=''};
 </script>
 </body>
 </html>
