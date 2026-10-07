@@ -26,7 +26,11 @@ def title_fonts() -> list[dict]:
 SUBTITLE_FONT = FONT_DIR / "NotoSansKR-Regular.ttf"    # 한글
 
 OUT_W, OUT_H = 1080, 1920          # 9:16 릴스
-FPS = 30
+FPS = 30                           # 원본 프레임레이트가 23~61 범위면 원본 유지, 아니면 이 값
+CRF = 18                           # H.264 품질 (낮을수록 고화질, 18 = 시각적으로 원본과 구분 어려움)
+X264_PRESET = "medium"
+VIGNETTE = False                   # 가장자리 어둡게 (원본 색 유지하려면 False)
+AUDIO_NORMALIZE = True             # 인스타그램 권장 -14 LUFS 로 음량 정규화
 TITLE_WIDTH = 0.88                 # 타이틀 글자 폭 = 화면 폭의 88% (크기는 자동 계산)
 TITLE_Y = 0.29                     # 타이틀 세로 중심 (화면 높이 비율)
 SUBTITLE_SIZE = 35                 # px

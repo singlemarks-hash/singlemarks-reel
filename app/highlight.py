@@ -54,7 +54,18 @@ def probe(path: str) -> dict:
     w, h = int(v["width"]), int(v["height"])
     if rot in (90, -90, 270, -270):
         w, h = h, w
-    return {"duration": dur, "width": w, "height": h}
+    fps = 30.0
+    try:
+        num, den = (v.get("avg_frame_rate") or v.get("r_frame_rate") or "30/1").split("/")
+        fps = float(num) / float(den) if float(den) else 30.0
+    except (ValueError, ZeroDivisionError):
+        pass
+    trc = (v.get("color_transfer") or "").lower()
+    prim = (v.get("color_primaries") or "").lower()
+    hdr = trc in ("smpte2084", "arib-std-b67") or prim == "bt2020"
+    return {"duration": dur, "width": w, "height": h, "fps": round(fps, 3),
+            "codec": v.get("codec_name"), "pix_fmt": v.get("pix_fmt"),
+            "hdr": hdr, "color_transfer": trc or None}
 
 
 def load_audio(path: str) -> np.ndarray:

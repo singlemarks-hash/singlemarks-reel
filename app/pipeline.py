@@ -65,9 +65,7 @@ def analyze_job(job: Job, src: Path, clip_sec: float = C.CLIP_SECONDS,
     try:
         job.update(status="analyzing", stage="영상 정보 확인 중", progress=3)
         info = probe(str(src))
-        job.update(source={"duration": info["duration"], "width": info["width"],
-                           "height": info["height"], "url": f"/jobs/{job.id}/{src.name}",
-                           "file": src.name})
+        job.update(source={**info, "url": f"/jobs/{job.id}/{src.name}", "file": src.name})
 
         def prog(msg):
             job.update(stage=msg, progress=max(job.state["progress"], 8))
@@ -99,7 +97,8 @@ def render_job(job: Job, segments: list[dict], artist_name: str, artist_handle: 
                        progress=25 + int(70 * (i - 1) / len(segments)))
             out = job.dir / f"reel_{i}.mp4"
             render_clip(str(src), s["start"], s["end"], out, focus=focus,
-                        src_w=info["width"], src_h=info["height"], title_font=title_font)
+                        src_w=info["width"], src_h=info["height"], title_font=title_font,
+                        hdr=bool(info.get("hdr")), src_fps=info.get("fps"))
             thumb = job.dir / f"reel_{i}.jpg"
             thumbnail(out, thumb)
             clips.append({

@@ -8,39 +8,64 @@ from . import config as C
 from .overlay import build_overlay
 
 
-def build_filter(focus: float, clip_sec: float, has_vignette: bool = True) -> str:
-    """[0:v]=원본, [1:v]=텍스트 오버레이 PNG. drawtext 없이 overlay 필터만 사용."""
+def _filters_available(*names: str) -> bool:
+    out = _filter_list()
+    return all(f" {n} " in out for n in names)
+
+
+_FILTER_LIST: str | None = None
+
+
+def _filter_list() -> str:
+    global _FILTER_LIST
+    if _FILTER_LIST is None:
+        _FILTER_LIST = subprocess.run(["ffmpeg", "-hide_banner", "-filters"],
+                                      capture_output=True, text=True).stdout
+    return _FILTER_LIST
+
+
+def hdr_to_sdr_chain() -> str | None:
+    """HDR(HLG/PQ, bt2020) 원본을 SDR bt709 로 톤매핑. 가능한 필터가 없으면 None."""
+    if _filters_available("zscale", "tonemap"):
+        return ("zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,"
+                "tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p")
+    if _filters_available("colorspace"):
+        return "colorspace=all=bt709:iall=bt2020:fast=1,format=yuv420p"
+    return None
+
+
+def pick_fps(src_fps: float | None) -> float:
+    if src_fps and 23 <= src_fps <= 61:
+        return round(src_fps, 3)
+    return C.FPS
+
+
+def build_filter(focus: float, hdr: bool = False, src_fps: float | None = None) -> str:
+    """[0:v]=원본, [1:v]=텍스트 오버레이 PNG. 원본 화질을 최대한 유지하며 크롭+합성만 수행."""
     focus = min(1.0, max(0.0, focus))
     crop = (
         f"crop=w='min(iw,ih*9/16)':h='min(ih,iw*16/9)'"
         f":x='(iw-ow)*{focus}':y='(ih-oh)/2'"
     )
-    base = [
-        "format=yuv420p",      # 10비트 HEVC(아이폰) 등도 8비트로 통일한 뒤 필터 적용
+    base = []
+    if hdr and (chain := hdr_to_sdr_chain()):
+        base.append(chain)                     # HDR → SDR 톤매핑 (색 바램 방지)
+    else:
+        base.append("format=yuv420p")          # 10비트 → 8비트
+    base += [
         crop,
+        # 원본이 이미 1080 폭이면 scale 은 사실상 통과, 4K 는 lanczos 로 다운스케일
         f"scale={C.OUT_W}:{C.OUT_H}:flags=lanczos",
         "setsar=1",
-        f"fps={C.FPS}",
+        f"fps={pick_fps(src_fps)}",
     ]
-    if has_vignette:
-        base.append("vignette=angle=PI/5:mode=forward")   # 상단 텍스트 가독성을 위한 옅은 비네트
+    if C.VIGNETTE and _filters_available("vignette"):
+        base.append("vignette=angle=PI/5:mode=forward")
     return (
         f"[0:v]{','.join(base)}[base];"
         f"[1:v]format=rgba[txt];"
         f"[base][txt]overlay=0:0:format=auto:shortest=1,format=yuv420p[v]"
     )
-
-
-_HAS_VIGNETTE: bool | None = None
-
-
-def _has_vignette() -> bool:
-    global _HAS_VIGNETTE
-    if _HAS_VIGNETTE is None:
-        out = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True,
-                             text=True).stdout
-        _HAS_VIGNETTE = " vignette " in out
-    return _HAS_VIGNETTE
 
 
 def resolve_title_font(name: str | None) -> Path:
@@ -53,7 +78,8 @@ def resolve_title_font(name: str | None) -> Path:
 
 
 def render_clip(src: str, start: float, end: float, out: Path, focus: float = 0.5,
-                src_w: int = 1920, src_h: int = 1080, title_font: str | None = None) -> Path:
+                src_w: int = 1920, src_h: int = 1080, title_font: str | None = None,
+                hdr: bool = False, src_fps: float | None = None) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     clip_sec = end - start
     font = resolve_title_font(title_font)
@@ -61,18 +87,18 @@ def render_clip(src: str, start: float, end: float, out: Path, focus: float = 0.
     if not overlay_png.exists():
         build_overlay(overlay_png, title_font=font)
 
-    af = "loudnorm=I=-14:TP=-1.5:LRA=11"
+    af = "loudnorm=I=-14:TP=-1.5:LRA=11" if C.AUDIO_NORMALIZE else "anull"
     cmd = [
         "ffmpeg", "-y", "-v", "error",
         "-ss", f"{start:.3f}", "-t", f"{clip_sec:.3f}", "-i", src,
-        "-loop", "1", "-framerate", str(C.FPS), "-i", str(overlay_png),
-        "-filter_complex", build_filter(focus, clip_sec, _has_vignette()),
+        "-loop", "1", "-framerate", str(pick_fps(src_fps)), "-i", str(overlay_png),
+        "-filter_complex", build_filter(focus, hdr=hdr, src_fps=src_fps),
         "-map", "[v]", "-map", "0:a:0",
         "-af", af,
         "-t", f"{clip_sec:.3f}",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+        "-c:v", "libx264", "-preset", C.X264_PRESET, "-crf", str(C.CRF),
         "-profile:v", "high", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+        "-c:a", "aac", "-b:a", "256k", "-ar", "48000",
         "-movflags", "+faststart",
         str(out),
     ]
