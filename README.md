@@ -42,6 +42,24 @@ python -m app.cli 공연영상.mp4 --artist 허지수 --handle j12xu \
   --schedule "10/6(화)\n1부: 8:00~8:30" --out ./결과
 ```
 
+## 배포 (Railway)
+
+폰 브라우저에서 바로 쓰려면 클라우드에 올립니다. 저장소에 `Dockerfile` 과 `railway.json` 이 있어
+Railway 가 자동으로 빌드합니다.
+
+1. https://railway.app 가입 → **New Project → Deploy from GitHub repo** → 이 저장소 선택
+2. 브랜치를 `claude/loving-feynman-1bq8lj`(또는 main) 로 지정
+3. Settings → Networking → **Generate Domain** 으로 공개 주소 발급
+4. (선택) Variables 에 `JOBS_DIR=/srv/jobs` 외에 바꿀 건 없습니다
+
+이후 GitHub 에 푸시할 때마다 자동으로 재배포됩니다. Fly.io 를 쓰려면 `fly launch` 후 `fly deploy` (설정은 `fly.toml`).
+
+**서버 보관 정책** (`app/config.py`): 원본 영상은 결과 화면의 **완료** 버튼으로 즉시 삭제되고,
+누르지 않아도 2시간 뒤 자동 삭제됩니다. 클립과 캡션은 24시간 뒤 삭제됩니다.
+
+**폰에서 결과 받기**: 각 클립의 **공유** 버튼이 iOS/Android 공유 시트를 열어 사진 앱이나 인스타그램으로
+바로 보냅니다. **저장** 은 파일로 다운로드합니다.
+
 ## 동작 방식
 
 1. **하이라이트 분석** (`app/highlight.py`) — 영상 디코딩 없이 오디오만 분석해 빠릅니다.

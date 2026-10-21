@@ -129,10 +129,50 @@ def run_job(job: Job, src: Path, artist_name: str, artist_handle: str, schedule:
         pass
 
 
-def cleanup_old_jobs(max_age_hours: float = 24):
+def delete_source(job_id: str) -> bool:
+    """원본 영상만 삭제 (클립과 캡션은 유지)."""
+    st = Job.load(job_id)
+    if not st or not st.get("source"):
+        return False
+    src = C.JOBS_DIR / job_id / st["source"]["file"]
+    removed = False
+    if src.exists():
+        src.unlink()
+        removed = True
+    job = Job(job_id)
+    job.update(source_deleted=True)
+    return removed
+
+
+def cleanup_old_jobs():
+    """원본은 SOURCE_TTL_HOURS, 작업 폴더 전체는 JOB_TTL_HOURS 후 삭제."""
     now = time.time()
     if not C.JOBS_DIR.exists():
         return
     for d in C.JOBS_DIR.iterdir():
-        if d.is_dir() and now - d.stat().st_mtime > max_age_hours * 3600:
+        if not d.is_dir():
+            continue
+        age = now - d.stat().st_mtime
+        if age > C.JOB_TTL_HOURS * 3600:
             shutil.rmtree(d, ignore_errors=True)
+            continue
+        if age > C.SOURCE_TTL_HOURS * 3600:
+            for f in d.glob("source.*"):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
+
+
+def start_cleanup_thread(interval_sec: int = 600):
+    import threading
+
+    def loop():
+        while True:
+            try:
+                cleanup_old_jobs()
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(interval_sec)
+
+    threading.Thread(target=loop, daemon=True).start()

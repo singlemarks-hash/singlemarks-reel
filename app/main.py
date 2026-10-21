@@ -13,11 +13,12 @@ from . import config as C
 from pydantic import BaseModel
 
 from .caption import format_schedule
-from .pipeline import Job, analyze_job, cleanup_old_jobs, render_job
+from .pipeline import Job, analyze_job, cleanup_old_jobs, delete_source, render_job, start_cleanup_thread
 from .render import check_ffmpeg
 
 app = FastAPI(title="Singlemarks Reel Maker")
 C.JOBS_DIR.mkdir(parents=True, exist_ok=True)
+start_cleanup_thread()
 app.mount("/jobs", StaticFiles(directory=str(C.JOBS_DIR)), name="jobs")
 app.mount("/fonts", StaticFiles(directory=str(C.FONT_DIR)), name="fonts")
 STATIC = Path(__file__).parent / "static"
@@ -140,6 +141,14 @@ def job_status(job_id: str):
     if st is None:
         raise HTTPException(404, "작업을 찾을 수 없습니다.")
     return JSONResponse(st)
+
+
+@app.delete("/api/jobs/{job_id}/source")
+def remove_source(job_id: str):
+    """클립을 받은 뒤 원본 영상을 서버에서 즉시 삭제."""
+    if Job.load(job_id) is None:
+        raise HTTPException(404)
+    return {"removed": delete_source(job_id)}
 
 
 @app.get("/api/jobs/{job_id}/download/{n}")

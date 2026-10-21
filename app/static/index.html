@@ -2,7 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Reel Maker">
 <title>Reel Maker</title>
 <style>
 :root{--bg:#fff;--fg:#111;--muted:#6b6b6b;--line:#e6e6e6;--line2:#d0d0d0;--soft:#f6f6f6;--err:#b42318}
@@ -34,7 +36,7 @@ textarea{min-height:88px;resize:vertical}
 .stage{font-size:13px;color:var(--muted);margin-top:10px;min-height:18px}
 .stage.err{color:var(--err);white-space:pre-wrap;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.5}
 .clips{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-@media(max-width:560px){.clips{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.clips{grid-template-columns:1fr 1fr}.clip .meta{font-size:13px}.clip .dl a{padding:6px 10px;border:1px solid var(--line2);border-radius:6px;margin-left:6px}.actions .btn{width:100%}.wrap{padding-top:40px}}
 .clip video{width:100%;aspect-ratio:9/16;background:#000;border-radius:6px;display:block}
 .clip .meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
 .clip a{color:var(--fg);text-decoration:none;border-bottom:1px solid var(--line2)}
@@ -167,11 +169,15 @@ hr{border:0;border-top:1px solid var(--line);margin:48px 0}
 
   <section class="hidden" id="result">
     <hr>
-    <div class="hdr"><h2 style="margin-top:0">결과</h2><div class="acts" style="display:flex;gap:6px"><button class="btn ghost" id="readjust" type="button">구간 다시 조정</button><button class="btn ghost" id="again" type="button">새로 만들기</button></div></div>
+    <div class="hdr"><h2 style="margin-top:0">결과</h2><div class="acts" style="display:flex;gap:6px"><button class="btn ghost" id="readjust" type="button">구간 다시 조정</button></div></div>
     <div class="segs" id="segs"></div>
     <div class="clips" id="clips"></div>
     <div class="hdr"><h2>캡션</h2><button class="btn ghost" id="copy" type="button">복사</button></div>
     <div class="caption" id="caption"></div>
+    <div class="actions" style="margin-top:28px">
+      <button class="btn" id="finish" type="button">완료 · 서버에서 원본 삭제</button>
+      <span class="hint" id="finishHint">클립 3개와 캡션은 24시간 동안 남아 있고, 원본 영상은 지금 바로 지워집니다.</span>
+    </div>
   </section>
 </div>
 
@@ -395,13 +401,31 @@ function show(st){
   $('#segs').textContent=`선택 구간 `+st.clips.map(c=>`${fmt(c.start)}–${fmt(c.end)}`).join(', ');
   $('#clips').innerHTML=st.clips.map(c=>`<div class="clip">
     <video src="${c.video}" poster="${c.thumb}" controls playsinline preload="metadata"></video>
-    <div class="meta"><span>${c.index} · ${fmt(c.start)}–${fmt(c.end)}</span><a href="/api/jobs/${jobId}/download/${c.index}">다운로드</a></div></div>`).join('');
+    <div class="meta"><span>${c.index} · ${fmt(c.start)}–${fmt(c.end)}</span><span class="dl"><a href="#" data-share="${c.index}">공유</a> <a href="/api/jobs/${jobId}/download/${c.index}" download>저장</a></span></div></div>`).join('');
+  $('#clips').querySelectorAll('[data-share]').forEach(a=>a.onclick=ev=>{ev.preventDefault();shareClip(+a.dataset.share)});
+  if(!navigator.canShare)$('#clips').querySelectorAll('[data-share]').forEach(a=>a.style.display='none');
   $('#caption').textContent=st.caption;
   $('#result').scrollIntoView({behavior:'smooth'});
 }
 $('#readjust').onclick=()=>$('#adjust').scrollIntoView({behavior:'smooth'});
+async function shareClip(i){
+  // 폰: 사진 앱·인스타그램으로 바로 넘기기 (Web Share API)
+  const a=$(`[data-share="${i}"]`); const old=a.textContent; a.textContent='준비 중…';
+  try{
+    const blob=await (await fetch(`/api/jobs/${jobId}/download/${i}`)).blob();
+    const name=($('#artistName').value||'reel').replace(/[\\/:*?"<>|]/g,'')+`_reel_${i}.mp4`;
+    const file=new File([blob],name,{type:'video/mp4'});
+    if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:name});
+    else{const u=URL.createObjectURL(blob);const l=document.createElement('a');l.href=u;l.download=name;l.click();setTimeout(()=>URL.revokeObjectURL(u),5000)}
+  }catch(e){if(e.name!=='AbortError')alert('공유 실패: '+e.message)}
+  a.textContent=old;
+}
+$('#finish').onclick=async()=>{
+  if(!jobId)return; const b=$('#finish'); b.disabled=true; b.textContent='삭제 중…';
+  try{await fetch(`/api/jobs/${jobId}/source`,{method:'DELETE'});b.textContent='원본 삭제됨 · 새 영상 만들기';$('#finishHint').textContent='클립과 캡션은 그대로 받을 수 있습니다. 버튼을 누르면 처음 화면으로 돌아갑니다.';b.disabled=false;b.onclick=()=>location.reload()}
+  catch(e){b.disabled=false;b.textContent='완료 · 서버에서 원본 삭제';alert('삭제 실패: '+e.message)}
+};
 $('#copy').onclick=async()=>{await navigator.clipboard.writeText($('#caption').textContent);$('#copy').textContent='복사됨';setTimeout(()=>$('#copy').textContent='복사',1500)};
-$('#again').onclick=()=>{window.scrollTo({top:0,behavior:'smooth'});resetUpload();['#result','#adjust','#prog2'].forEach(x=>$(x).classList.add('hidden'));$('#stage2').textContent=''};
 </script>
 </body>
 </html>

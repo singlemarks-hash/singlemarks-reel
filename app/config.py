@@ -4,7 +4,13 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 FONT_DIR = BASE_DIR / "fonts"
-JOBS_DIR = BASE_DIR.parent / "jobs"
+import os
+JOBS_DIR = Path(os.environ.get("JOBS_DIR") or (BASE_DIR.parent / "jobs"))
+
+# ── 서버 보관 정책 ─────────────────────────────────────────
+SOURCE_TTL_HOURS = 2       # 원본 영상: 마지막 작업 후 이 시간이 지나면 자동 삭제 (결과 화면의 "완료" 버튼은 즉시 삭제)
+JOB_TTL_HOURS = 24         # 클립·캡션: 이 시간이 지나면 작업 폴더째 삭제
+
 
 # ── 영상 템플릿 ─────────────────────────────────────────────
 TITLE_TEXT = "Concert Every Night"
