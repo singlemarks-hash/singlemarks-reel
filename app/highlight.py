@@ -10,6 +10,7 @@
   5. 시작점을 근처의 음량이 잠깐 꺼지는 지점(프레이즈 경계)으로 스냅
 """
 from __future__ import annotations
+from typing import Optional
 
 import json
 import subprocess
@@ -105,7 +106,7 @@ def _norm(x: np.ndarray) -> np.ndarray:
 
 
 def find_highlights(path: str, clip_sec: float = 30, count: int = 3,
-                    min_gap_sec: float | None = None, progress=None,
+                    min_gap_sec: Optional[float] = None, progress=None,
                     return_curve: bool = False):
     info = probe(path)
     duration = info["duration"]

@@ -1,5 +1,6 @@
 """업로드 → 하이라이트 분석 → 렌더 → 캡션. 잡 상태는 jobs/<id>/status.json 에 기록."""
 from __future__ import annotations
+from typing import Optional
 
 import json
 import shutil
@@ -25,7 +26,7 @@ def _errmsg(e: Exception) -> str:
 
 
 class Job:
-    def __init__(self, job_id: str | None = None):
+    def __init__(self, job_id: Optional[str] = None):
         self.id = job_id or uuid.uuid4().hex[:12]
         self.dir = C.JOBS_DIR / self.id
         self.dir.mkdir(parents=True, exist_ok=True)
@@ -52,7 +53,7 @@ class Job:
         self.save()
 
     @staticmethod
-    def load(job_id: str) -> dict | None:
+    def load(job_id: str) -> Optional[dict]:
         f = C.JOBS_DIR / job_id / "status.json"
         if not f.exists():
             return None
@@ -80,7 +81,7 @@ def analyze_job(job: Job, src: Path, clip_sec: float = C.CLIP_SECONDS,
 
 
 def render_job(job: Job, segments: list[dict], artist_name: str, artist_handle: str,
-               schedule: str, focus: float = 0.5, title_font: str | None = None):
+               schedule: str, focus: float = 0.5, title_font: Optional[str] = None):
     """2단계: 확정된 구간으로 릴스를 렌더링합니다. 원본은 재조정을 위해 보관합니다."""
     try:
         src = job.dir / job.state["source"]["file"]

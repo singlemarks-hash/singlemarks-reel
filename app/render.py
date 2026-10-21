@@ -1,5 +1,6 @@
 """ffmpeg로 9:16 릴스 클립을 렌더링하고 고정 템플릿 텍스트를 올립니다."""
 from __future__ import annotations
+from typing import Optional
 
 import subprocess
 from pathlib import Path
@@ -13,7 +14,7 @@ def _filters_available(*names: str) -> bool:
     return all(f" {n} " in out for n in names)
 
 
-_FILTER_LIST: str | None = None
+_FILTER_LIST: Optional[str] = None
 
 
 def _filter_list() -> str:
@@ -24,7 +25,7 @@ def _filter_list() -> str:
     return _FILTER_LIST
 
 
-def hdr_to_sdr_chain() -> str | None:
+def hdr_to_sdr_chain() -> Optional[str]:
     """HDR(HLG/PQ, bt2020) 원본을 SDR bt709 로 톤매핑. 가능한 필터가 없으면 None."""
     if _filters_available("zscale", "tonemap"):
         return ("zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,"
@@ -34,13 +35,13 @@ def hdr_to_sdr_chain() -> str | None:
     return None
 
 
-def pick_fps(src_fps: float | None) -> float:
+def pick_fps(src_fps: Optional[float]) -> float:
     if src_fps and 23 <= src_fps <= 61:
         return round(src_fps, 3)
     return C.FPS
 
 
-def build_filter(focus: float, hdr: bool = False, src_fps: float | None = None) -> str:
+def build_filter(focus: float, hdr: bool = False, src_fps: Optional[float] = None) -> str:
     """[0:v]=원본, [1:v]=텍스트 오버레이 PNG. 원본 화질을 최대한 유지하며 크롭+합성만 수행."""
     focus = min(1.0, max(0.0, focus))
     crop = (
@@ -68,7 +69,7 @@ def build_filter(focus: float, hdr: bool = False, src_fps: float | None = None) 
     )
 
 
-def resolve_title_font(name: str | None) -> Path:
+def resolve_title_font(name: Optional[str]) -> Path:
     """UI에서 넘어온 파일명을 app/fonts 안의 경로로 안전하게 변환."""
     if name:
         cand = C.FONT_DIR / Path(name).name
@@ -78,8 +79,8 @@ def resolve_title_font(name: str | None) -> Path:
 
 
 def render_clip(src: str, start: float, end: float, out: Path, focus: float = 0.5,
-                src_w: int = 1920, src_h: int = 1080, title_font: str | None = None,
-                hdr: bool = False, src_fps: float | None = None) -> Path:
+                src_w: int = 1920, src_h: int = 1080, title_font: Optional[str] = None,
+                hdr: bool = False, src_fps: Optional[float] = None) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     clip_sec = end - start
     font = resolve_title_font(title_font)

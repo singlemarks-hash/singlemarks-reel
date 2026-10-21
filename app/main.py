@@ -1,5 +1,6 @@
 """FastAPI 서버: 업로드 / 상태 조회 / 결과 다운로드."""
 from __future__ import annotations
+from typing import Optional
 
 import shutil
 import threading
@@ -87,11 +88,11 @@ class SegmentIn(BaseModel):
 
 class RenderIn(BaseModel):
     segments: list[SegmentIn]
-    artist_name: str | None = None
-    artist_handle: str | None = None
-    schedule: str | None = None
-    schedule_items: list[dict] | None = None   # [{"date": "2026-10-06", "parts": [1, 2]}]
-    title_font: str | None = None
+    artist_name: Optional[str] = None
+    artist_handle: Optional[str] = None
+    schedule: Optional[str] = None
+    schedule_items: Optional[list[dict]] = None   # [{"date": "2026-10-06", "parts": [1, 2]}]
+    title_font: Optional[str] = None
 
 
 @app.get("/api/fonts")

@@ -1,6 +1,7 @@
 """고정 템플릿 텍스트를 Pillow로 투명 PNG에 그립니다.
 ffmpeg의 drawtext 필터(freetype 빌드 필요)에 의존하지 않기 위한 방식입니다."""
 from __future__ import annotations
+from typing import Optional
 
 from pathlib import Path
 
@@ -29,7 +30,7 @@ def _fit_font(path: Path, text: str, target_w: float) -> ImageFont.FreeTypeFont:
 
 
 def build_overlay(out: Path, w: int = C.OUT_W, h: int = C.OUT_H,
-                  title_font: Path | None = None) -> Path:
+                  title_font: Optional[Path] = None) -> Path:
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
 
