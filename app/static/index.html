@@ -75,8 +75,6 @@ hr{border:0;border-top:1px solid var(--line);margin:48px 0}
 .drow .dl{font-weight:500;min-width:92px;font-variant-numeric:tabular-nums}
 .drow label{display:inline-flex;align-items:center;gap:6px;margin:0;color:var(--fg);font-size:14px;cursor:pointer}
 .drow input[type=checkbox]{accent-color:#111;width:16px;height:16px}
-.drow .x{margin-left:auto;background:none;border:0;color:var(--muted);cursor:pointer;font-size:18px;line-height:1}
-.drow .x:hover{color:var(--fg)}
 
 /* 업로드 카드 */
 .upcard{border:1px solid var(--line);border-radius:8px;padding:14px 16px}
@@ -141,7 +139,7 @@ hr{border:0;border-top:1px solid var(--line);margin:48px 0}
       <div class="cal-head"><button type="button" class="nav" id="calPrev" aria-label="이전 달">‹</button><span id="calTitle"></span><button type="button" class="nav" id="calNext" aria-label="다음 달">›</button></div>
       <div class="cal-grid" id="calGrid"></div>
     </div>
-    <div class="hint">날짜를 누르면 선택됩니다. 여러 날 선택 가능.</div>
+    <div class="hint">공연 날짜를 누르세요.</div>
     <div id="dates"></div>
     <div class="hint" id="partHint">1부 8:00~8:30 · 2부 10:00~10:30. 체크한 부의 시간이 캡션에 들어갑니다.</div>
 
@@ -335,7 +333,7 @@ function drawCal(){
     const e=document.createElement('div'); const k=iso(d), dow=d.getDay();
     e.className='d'+(out?' out':'')+(dow===0?' sun':dow===6?' sat':'')+(k===iso(today)?' today':'')+(selected.has(k)?' sel':'')+(!out&&d<today?' past':'');
     e.textContent=d.getDate();
-    if(!out)e.onclick=()=>{selected.has(k)?selected.delete(k):selected.set(k,{parts:new Set([1])});drawCal();drawRows()};
+    if(!out)e.onclick=()=>{const prev=selected.get(k);selected.clear();selected.set(k,prev||{parts:new Set([1])});drawCal();drawRows()};
     g.appendChild(e);
   });
 }
@@ -349,10 +347,8 @@ function drawRows(){
     const row=document.createElement('div'); row.className='drow';
     row.innerHTML=`<span class="dl">${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})</span>
       <label><input type="checkbox" value="1" ${it.parts.has(1)?'checked':''}> 1부</label>
-      <label><input type="checkbox" value="2" ${it.parts.has(2)?'checked':''}> 2부</label>
-      <button class="x" type="button" title="삭제">×</button>`;
+      <label><input type="checkbox" value="2" ${it.parts.has(2)?'checked':''}> 2부</label>`;
     row.querySelectorAll('input').forEach(c=>c.onchange=()=>{c.checked?it.parts.add(+c.value):it.parts.delete(+c.value)});
-    row.querySelector('.x').onclick=()=>{selected.delete(k);drawCal();drawRows()};
     box.appendChild(row);
   });
   $('#partHint').style.display=selected.size?'':'none';
