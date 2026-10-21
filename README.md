@@ -10,16 +10,21 @@
 
 아티스트 이름 · 계정 · 공연 일정만 바꿔 캡션에 반영됩니다.
 
-## 실행
+## 직원용 설치 안내 (3단계)
 
-**가장 쉬운 방법** — 폴더 안의 실행 파일을 더블클릭합니다.
+git, Python, ffmpeg 를 몰라도 됩니다. 처음 한 번만 아래를 하면 됩니다.
 
-- Mac: `start.command`  (처음 한 번은 우클릭 → 열기)
-- Windows: `start.bat`
+1. **코드 받기**: https://github.com/singlemarks-hash/singlemarks-reel/tree/claude/loving-feynman-1bq8lj 에서
+   초록색 **Code → Download ZIP** 을 누르고, 받은 ZIP 을 더블클릭해 풉니다.
+   (git 을 쓸 줄 알면 `git clone` 후 `git checkout claude/loving-feynman-1bq8lj` 도 됩니다. 이 경우 실행할 때마다 자동 업데이트됩니다.)
+2. **실행**: 풀린 폴더 안의 **`start.command`** (Mac) 또는 **`start.bat`** (Windows) 를 더블클릭합니다.
+   - Mac 에서 "확인되지 않은 개발자" 경고가 뜨면 파일을 **우클릭 → 열기** 로 한 번만 열어 주면 됩니다.
+   - Mac 에서 "명령어 라인 개발자 도구" 설치 팝업이 뜨면 **[설치]** 를 누르고, 끝나면 다시 더블클릭합니다.
+   - 처음에는 ffmpeg(약 100MB)와 패키지를 자동으로 내려받아 1~3분 걸립니다. 두 번째부터는 몇 초면 켜집니다.
+3. 검은 창이 뜨고 브라우저가 자동으로 열립니다. **그 창은 닫지 말고** 쓰세요. 끝낼 때 Ctrl + C 또는 창 닫기.
 
-최신 코드를 받고, 필요한 패키지를 설치하고, 서버를 켠 뒤 브라우저를 자동으로 엽니다.
-끌 때는 열린 터미널 창에서 Ctrl + C 를 누르거나 창을 닫습니다. ffmpeg 는 미리 설치돼 있어야 합니다
-(Mac `brew install ffmpeg`, Windows `winget install ffmpeg`).
+폰으로 찍은 영상은 AirDrop 등으로 컴퓨터에 옮긴 뒤 화면에 끌어다 놓으면 됩니다.
+영상은 그 컴퓨터 안에서만 처리되고 외부로 나가지 않습니다. 결과물은 폴더 안 `jobs/` 에 24시간 보관됩니다.
 
 터미널에서 직접 실행하려면:
 
@@ -28,37 +33,10 @@ pip install -r requirements.txt     # ffmpeg / ffprobe 가 PATH 에 있어야 �
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-브라우저에서 `http://localhost:8000` 접속 → 영상 업로드 → 아티스트 정보 입력 → **하이라이트 분석**.
+## (선택) 클라우드 배포
 
-분석이 끝나면(30분 영상 기준 10초 안팎) **구간 조정** 화면이 열립니다.
-오디오 에너지 그래프 위에서 각 클립의 시작점을 끌어서 옮기거나 시간을 직접 입력하고,
-▶ 미리보기로 그 구간을 확인한 뒤 **이 구간으로 렌더링**을 누르면 릴스가 만들어집니다.
-구간 추가·삭제, 자동 선택으로 되돌리기, 렌더 후 다시 조정도 가능합니다.
-
-서버 없이 터미널에서도 실행할 수 있습니다.
-
-```bash
-python -m app.cli 공연영상.mp4 --artist 허지수 --handle j12xu \
-  --schedule "10/6(화)\n1부: 8:00~8:30" --out ./결과
-```
-
-## 배포 (Railway)
-
-폰 브라우저에서 바로 쓰려면 클라우드에 올립니다. 저장소에 `Dockerfile` 과 `railway.json` 이 있어
-Railway 가 자동으로 빌드합니다.
-
-1. https://railway.app 가입 → **New Project → Deploy from GitHub repo** → 이 저장소 선택
-2. 브랜치를 `claude/loving-feynman-1bq8lj`(또는 main) 로 지정
-3. Settings → Networking → **Generate Domain** 으로 공개 주소 발급
-4. (선택) Variables 에 `JOBS_DIR=/srv/jobs` 외에 바꿀 건 없습니다
-
-이후 GitHub 에 푸시할 때마다 자동으로 재배포됩니다. Fly.io 를 쓰려면 `fly launch` 후 `fly deploy` (설정은 `fly.toml`).
-
-**서버 보관 정책** (`app/config.py`): 원본 영상은 결과 화면의 **완료** 버튼으로 즉시 삭제되고,
-누르지 않아도 2시간 뒤 자동 삭제됩니다. 클립과 캡션은 24시간 뒤 삭제됩니다.
-
-**폰에서 결과 받기**: 각 클립의 **공유** 버튼이 iOS/Android 공유 시트를 열어 사진 앱이나 인스타그램으로
-바로 보냅니다. **저장** 은 파일로 다운로드합니다.
+직원 컴퓨터에서 직접 실행하는 것이 기본입니다. 서버에 올리고 싶다면 `Dockerfile` 과 `railway.json` / `fly.toml` 이 준비돼 있습니다.
+원본 영상은 결과 화면의 **완료** 버튼으로 즉시 삭제되고, 누르지 않아도 2시간 뒤 자동 삭제됩니다.
 
 ## 동작 방식
 
