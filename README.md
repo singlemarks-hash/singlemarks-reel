@@ -18,7 +18,9 @@ git, Python, ffmpeg 를 몰라도 됩니다. 처음 한 번만 아래를 하면 
    초록색 **Code → Download ZIP** 을 누르고, 받은 ZIP 을 더블클릭해 풉니다.
    (git 을 쓸 줄 알면 `git clone` 후 `git checkout claude/loving-feynman-1bq8lj` 도 됩니다. 이 경우 실행할 때마다 자동 업데이트됩니다.)
 2. **실행**: 풀린 폴더 안의 **`start.command`** (Mac) 또는 **`start.bat`** (Windows) 를 더블클릭합니다.
-   - Mac 에서 "확인되지 않은 개발자" 경고가 뜨면 파일을 **우클릭 → 열기** 로 한 번만 열어 주면 됩니다.
+   - Mac 에서 **"start.command"을(를) 열 수 없습니다 / Apple이 확인할 수 없습니다** 경고가 뜨면 (그 Mac에서 한 번만):
+     **Done** 을 누른 뒤 **시스템 설정 → 개인정보 보호 및 보안** 맨 아래의 **그래도 열기(Open Anyway)** 를 누르고 다시 더블클릭합니다.
+     또는 터미널에 `xattr -d com.apple.quarantine ` 을 입력하고 start.command 파일을 끌어다 놓은 뒤 Enter.
    - Mac 에서 "명령어 라인 개발자 도구" 설치 팝업이 뜨면 **[설치]** 를 누르고, 끝나면 다시 더블클릭합니다.
    - 처음에는 ffmpeg(약 100MB)와 패키지를 자동으로 내려받아 1~3분 걸립니다. 두 번째부터는 몇 초면 켜집니다.
 3. 검은 창이 뜨고 브라우저가 자동으로 열립니다. **그 창은 닫지 말고** 쓰세요. 끝낼 때 Ctrl + C 또는 창 닫기.
