@@ -12,6 +12,17 @@
 
 ## 실행
 
+**가장 쉬운 방법** — 폴더 안의 실행 파일을 더블클릭합니다.
+
+- Mac: `start.command`  (처음 한 번은 우클릭 → 열기)
+- Windows: `start.bat`
+
+최신 코드를 받고, 필요한 패키지를 설치하고, 서버를 켠 뒤 브라우저를 자동으로 엽니다.
+끌 때는 열린 터미널 창에서 Ctrl + C 를 누르거나 창을 닫습니다. ffmpeg 는 미리 설치돼 있어야 합니다
+(Mac `brew install ffmpeg`, Windows `winget install ffmpeg`).
+
+터미널에서 직접 실행하려면:
+
 ```bash
 pip install -r requirements.txt     # ffmpeg / ffprobe 가 PATH 에 있어야 합니다
 uvicorn app.main:app --host 0.0.0.0 --port 8000
