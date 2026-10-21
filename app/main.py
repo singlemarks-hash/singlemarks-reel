@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from . import config as C
 from pydantic import BaseModel
 
+from .caption import format_schedule
 from .pipeline import Job, analyze_job, cleanup_old_jobs, render_job
 from .render import check_ffmpeg
 
@@ -88,6 +89,7 @@ class RenderIn(BaseModel):
     artist_name: str | None = None
     artist_handle: str | None = None
     schedule: str | None = None
+    schedule_items: list[dict] | None = None   # [{"date": "2026-10-06", "parts": [1, 2]}]
     title_font: str | None = None
 
 
@@ -121,7 +123,10 @@ def start_render(job_id: str, body: RenderIn):
     artist = st.get("artist") or {}
     name = body.artist_name if body.artist_name is not None else artist.get("name", "")
     handle = body.artist_handle if body.artist_handle is not None else artist.get("handle", "")
-    schedule = body.schedule if body.schedule is not None else st.get("schedule", "")
+    if body.schedule_items:
+        schedule = format_schedule(body.schedule_items)
+    else:
+        schedule = body.schedule if body.schedule is not None else st.get("schedule", "")
     threading.Thread(target=render_job,
                      args=(job, segs, name, handle, schedule, st.get("focus", 0.5),
                            body.title_font),

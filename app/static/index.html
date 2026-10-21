@@ -46,6 +46,18 @@ textarea{min-height:88px;resize:vertical}
 hr{border:0;border-top:1px solid var(--line);margin:48px 0}
 .hidden{display:none}
 
+/* 인스타 @ 접두어, 날짜 행 */
+.at{display:flex;align-items:center;border:1px solid var(--line2);border-radius:6px;background:#fff}
+.at span{padding:0 4px 0 12px;color:var(--muted)}
+.at input{border:0!important;padding-left:2px!important}
+.at:focus-within{border-color:var(--fg)}
+.drow{display:flex;align-items:center;gap:14px;margin-top:8px;flex-wrap:wrap}
+.drow input[type=date]{width:auto;padding:8px 10px}
+.drow label{display:inline-flex;align-items:center;gap:6px;margin:0;color:var(--fg);font-size:14px;cursor:pointer}
+.drow input[type=checkbox]{accent-color:#111;width:16px;height:16px}
+.drow .x{margin-left:auto;background:none;border:0;color:var(--muted);cursor:pointer;font-size:16px}
+.drow .x:hover{color:var(--fg)}
+
 /* 업로드 카드 */
 .upcard{border:1px solid var(--line);border-radius:8px;padding:14px 16px}
 .uphead{display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -102,10 +114,13 @@ hr{border:0;border-top:1px solid var(--line);margin:48px 0}
     <h2>아티스트 <span style="text-transform:none;letter-spacing:0;font-weight:400">· 캡션에 들어갑니다. 업로드 중에 입력해도 됩니다</span></h2>
     <label style="margin-top:0">이름</label>
     <input type="text" name="artist_name" id="artistName" placeholder="허지수">
-    <label>인스타그램</label>
-    <input type="text" name="artist_handle" id="artistHandle" placeholder="@j12xu">
+    <label>인스타그램 ID</label>
+    <div class="at"><span>@</span><input type="text" name="artist_handle" id="artistHandle" placeholder="j12xu" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
     <label>다음 공연 일정</label>
-    <textarea name="schedule" id="schedule" placeholder="10/6(화)&#10;1부: 8:00~8:30"></textarea>
+    <div id="dates"></div>
+    <button class="btn ghost" id="addDate" type="button" style="margin-top:8px">+ 날짜 추가</button>
+    <div class="hint">1부 8:00~8:30 · 2부 10:00~10:30. 체크한 부의 시간이 캡션에 들어갑니다.</div>
+    <input type="hidden" name="schedule" id="schedule">
 
     <div class="tpl">영상 템플릿은 고정됩니다<br><b>Concert Every Night</b> · <b>매일 밤 열리는 낭만적인 공연</b></div>
   </form>
@@ -170,7 +185,7 @@ function startUpload(){
 
   const fd=new FormData(); fd.append('video',f);
   fd.append('clip_seconds',$('#clipSec').value); fd.append('clip_count',$('[name=clip_count]').value);
-  fd.append('artist_name',$('#artistName').value); fd.append('artist_handle',$('#artistHandle').value); fd.append('schedule',$('#schedule').value);
+  fd.append('artist_name',$('#artistName').value); fd.append('artist_handle',$('#artistHandle').value);
 
   const t0=Date.now(); let lastLoaded=0,lastT=t0,speed=0;
   xhr=new XMLHttpRequest(); xhr.open('POST','/api/jobs');
@@ -277,6 +292,25 @@ $('#addSeg').onclick=()=>{if(segs.length>=6)return;
   segs.push({start:best,end:Math.min(duration,best+clipLen)}); segs.sort((a,b)=>a.start-b.start); renderSegs()};
 $('#resetSeg').onclick=()=>{segs=autoSegs.map(s=>({...s}));renderSegs()};
 
+/* 공연 일정 (달력 + 1부/2부) */
+const WD='월화수목금토일';
+function todayISO(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function addDateRow(v){
+  const row=document.createElement('div'); row.className='drow';
+  row.innerHTML=`<input type="date" value="${v||todayISO()}"><label><input type="checkbox" value="1" checked> 1부</label><label><input type="checkbox" value="2"> 2부</label><span class="hint prev"></span><button class="x" type="button" title="삭제">×</button>`;
+  row.querySelector('.x').onclick=()=>{if($('#dates').children.length>1)row.remove();updateSchedule()};
+  row.querySelectorAll('input').forEach(i=>i.onchange=updateSchedule);
+  $('#dates').appendChild(row); updateSchedule();
+}
+function scheduleItems(){return [...$('#dates').querySelectorAll('.drow')].map(r=>({date:r.querySelector('input[type=date]').value,parts:[...r.querySelectorAll('input[type=checkbox]:checked')].map(c=>+c.value)})).filter(x=>x.date)}
+function updateSchedule(){
+  $('#dates').querySelectorAll('.drow').forEach(r=>{const v=r.querySelector('input[type=date]').value;const p=r.querySelector('.prev');
+    if(!v){p.textContent='';return} const d=new Date(v+'T00:00:00');p.textContent=`→ ${d.getMonth()+1}/${d.getDate()}(${WD[(d.getDay()+6)%7]})`});
+  $('#schedule').value=JSON.stringify(scheduleItems());
+}
+$('#addDate').onclick=()=>addDateRow();
+addDateRow();
+
 /* 폰트 선택 + 미리보기 */
 let fontFaces={};
 fetch('/api/fonts').then(r=>r.json()).then(list=>{
@@ -298,7 +332,7 @@ function drawFontPreview(){
 $('#render').onclick=async()=>{
   pv.pause(); const bar2=$('#bar2'),st2=$('#stage2');
   $('#render').disabled=true; st2.className='stage'; st2.textContent='렌더링 시작'; $('#prog2').classList.remove('hidden'); bar2.style.width='25%';
-  const body={segments:segs,artist_name:$('#artistName').value,artist_handle:$('#artistHandle').value,schedule:$('#schedule').value,title_font:$('#fontSel').value};
+  const body={segments:segs,artist_name:$('#artistName').value,artist_handle:$('#artistHandle').value,schedule_items:scheduleItems(),title_font:$('#fontSel').value};
   const r=await fetch(`/api/jobs/${jobId}/render`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok){st2.className='stage err';st2.textContent='오류: '+(await r.text());$('#render').disabled=false;return}
   pollRender();

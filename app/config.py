@@ -35,12 +35,16 @@ TITLE_WIDTH = 0.88                 # 타이틀 글자 폭 = 화면 폭의 88% (�
 TITLE_Y = 0.29                     # 타이틀 세로 중심 (화면 높이 비율)
 SUBTITLE_SIZE = 35                 # px
 SUBTITLE_Y = 0.376                 # 서브타이틀 세로 중심
-SUBTITLE_TRACKING = 0.14           # 자간 (글자 크기 비율)
-SUBTITLE_WORD_GAP = 0.62           # 단어 사이 간격 (글자 크기 비율)
+SUBTITLE_TRACKING = 0.10           # 자간 (글자 크기 비율)
+SUBTITLE_WORD_GAP = 0.52           # 단어 사이 간격 (글자 크기 비율)
 SUBTITLE_STROKE = 2                # 검은 외곽선 두께 px
 
 CLIP_SECONDS = 30
 CLIP_COUNT = 3
+
+# ── 공연 시간표 (캡션 일정에 자동 삽입) ──────────────────────
+PART_TIMES = {1: "8:00~8:30", 2: "10:00~10:30"}
+WEEKDAYS_KO = "월화수목금토일"
 
 # ── 캡션 템플릿 ─────────────────────────────────────────────
 CAPTION_TEMPLATE = """서울 도심 속, 문을 여는 순간 펼쳐지는 🇫🇷파리의 어느 Jazz Bar.
